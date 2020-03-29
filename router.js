@@ -5,61 +5,126 @@ const {
   LinkCost,
   CircuitDatabase
 } = require("./packet");
+const NetworkGraph = require("./network_graph");
 const client = require("dgram").createSocket("udp4");
-const machina = require("machina");
-const createLogger = require("./logger");
+// const createLogger = require("./logger");
 
 //retrieve cli params
-const _emuAddress = process.argv[2];
-const _emuPort = process.argv[3];
-const _sndPort = process.argv[4];
-const _fileName = process.argv[5];
+const _routerId = process.argv[2];
+const _nseHost = process.argv[3];
+const _nsePort = process.argv[4];
+const _rtrPort = process.argv[5];
 
 //throw error if cli null or empty
-if (!_emuAddress || !_emuPort || !_sndPort || !_fileName) {
+if (!_routerId || !_nseHost || !_nsePort || !_rtrPort) {
   throw "Missing a required CLI param";
 }
 
-//parse packets from emu
+const HELLO_PSIZE = 8;
+const LS_PSIZE = 20;
+
+const _graph = new NetworkGraph(_routerId);
+let _circuitDatabase = null;
+let neighbourList = [];
+
+//parse packets from nse
 const rcvPacketFromNSE = buffer => {
   //create packet from buffer
-  console.log(buffer.toString());
+  let length = Buffer.byteLength(buffer);
+
+  switch (length) {
+    case HELLO_PSIZE:
+      processHelloPacket(HelloPacket.parseUDPdata(buffer));
+      break;
+    case LS_PSIZE:
+      processLinkStatePacket(LinkStatePacket.parseUDPdata(buffer));
+      break;
+    default:
+      _circuitDatabase = CircuitDatabase.parseUDPdata(buffer);
+      sndHelloPackets();
+      break;
+  }
 };
-
-//set event handler for messages from emulator
-client.on("message", rcvPacketFromNse);
-
-//start listening on specified port
-client.bind(_sndPort);
 
 //send packets to nse
 const sndPacketToNSE = packet => {
   let buffer = packet.getUDPData();
 
   //send buffer and log sequence number
-  client.send(buffer, _emuPort, _emuAddress, err => {
+  client.send(buffer, _nsePort, _nseHost, err => {
     err ? client.close() : console.log("GOOD");
   });
 };
 
-//gbn state machine
-const routerFSM = new machina.Fsm({
-  namespace: "a2-gbn",
-  //GBN constants
-  initialState: "INIT",
-  states: {
-    //in this state - get packets ready for transmission i.e chunking
-    INIT: {
-      SEND_INIT: function() {
-        console.log("IN --> SEND_PACKETS");
-      }
-    }
-  },
-  //external interface into state machine
-  _initFSM: function() {
-    this.handle("SEND_INIT_PACKET");
-  }
-});
+//set event handler for messages from emulator
+client.on("message", rcvPacketFromNSE);
 
-//transition to initial state on FSM
-routerFSM._initFSM();
+//start listening on specified port
+client.bind(_rtrPort);
+
+const sndHelloPackets = () => {
+  for (let link of _circuitDatabase.linkCosts) {
+    sndPacketToNSE(new HelloPacket(_routerId, link.linkId));
+  }
+};
+
+const processHelloPacket = helloPacket => {
+  //add to router, link to active neighbours
+  neighbourList.push(helloPacket.linkId);
+
+  //send circuit database as series of LSPDU's to neighbour who just sent hello
+  for (let link of _circuitDatabase.linkCosts) {
+    sndPacketToNSE(
+      new LinkStatePacket(
+        _routerId,
+        _routerId,
+        link.linkId,
+        link.cost,
+        helloPacket.linkId
+      )
+    );
+  }
+};
+
+const forwardLinkStatePacket = linkStatePacket => {
+  //get link LSPDU was received from
+  rcvdVia = linkStatePacket.via;
+
+  //set new sender as self
+  linkStatePacket.sender = _routerId;
+
+  //send to every neighbour except where it was received
+  for (activeNeighbour of neighbourList) {
+    if (activeNeighbour != rcvdVia) {
+      linkStatePacket.via = activeNeighbour;
+      sndPacketToNSE(linkStatePacket);
+    }
+  }
+};
+
+const processLinkStatePacket = linkStatePacket => {
+  let isUniqueLSPDU = _graph.checkUniqueLSPDU(
+    linkStatePacket.routerId,
+    linkStatePacket.linkId,
+    linkStatePacket.cost
+  );
+
+  if (isUniqueLSPDU) {
+    //create/update graph with information from LSPDU
+    _graph.createLink(
+      linkStatePacket.routerId,
+      linkStatePacket.linkId,
+      linkStatePacket.cost
+      // _circuitDatabase.findLink(linkStatePacket.linkId) //boolean whether this link is neighbouring to self
+    );
+
+    /* might need to check if update required */
+    forwardLinkStatePacket(linkStatePacket);
+  }
+
+  console.log(_graph.toString());
+  console.log("-----");
+};
+
+//init router
+sndPacketToNSE(new InitPacket(_routerId));

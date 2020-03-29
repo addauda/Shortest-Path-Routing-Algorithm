@@ -16,6 +16,10 @@ class HelloPacket {
     let linkId = buffer.readInt32LE(4);
     return new HelloPacket(routerId, linkId);
   }
+
+  toString() {
+    return `Hello from ${this.routerId} for ${this.linkId}`;
+  }
 }
 
 class LinkStatePacket {
@@ -65,8 +69,8 @@ class InitPacket {
 }
 
 class LinkCost {
-  constructor(link, cost) {
-    this.link = link;
+  constructor(linkId, cost) {
+    this.linkId = linkId;
     this.cost = cost;
   }
 }
@@ -77,6 +81,16 @@ class CircuitDatabase {
     this.linkCosts = linkCosts;
   }
 
+  findLink(linkId) {
+    for (let link of this.linkCosts) {
+      if (link.linkId == linkId) {
+        return link.cost;
+      }
+    }
+
+    return false;
+  }
+
   getUDPData() {
     let buffer = Buffer.alloc(this.linkCosts.length * 8 + 4);
 
@@ -85,28 +99,36 @@ class CircuitDatabase {
     let linkCostIndex = 0;
     let offset = 4;
     while (linkCostIndex < this.linkCosts.length) {
-      buffer.writeInt32LE(this.linkCosts[linkCostIndex].link, offset);
+      buffer.writeInt32LE(this.linkCosts[linkCostIndex].linkId, offset);
       buffer.writeInt32LE(this.linkCosts[linkCostIndex].cost, offset + 4);
-      offset += 4;
+      offset += 8;
     }
     return buffer;
   }
 
   static parseUDPdata(buffer) {
     let nbrOfLinks = buffer.readInt32LE(0);
+    let offset = 4;
+    let endByte = 8 * nbrOfLinks;
     let linkCosts = [];
-    for (let i = 1; i <= nbrOfLinks; i++) {
-      let data = [...buffer.readInt32LE(i * 4 + 4)];
-      let linkCost = new LinkCost(data[0], data[1]);
-      linkCosts.append(linkCost);
+    while (offset <= endByte) {
+      let linkCost = new LinkCost(
+        buffer.readInt32LE(offset),
+        buffer.readInt32LE(offset + 4)
+      );
+      linkCosts.push(linkCost);
+      offset += 8;
     }
     return new CircuitDatabase(nbrOfLinks, linkCosts);
   }
-}
 
-function CircuitDatabase(nbrOfLinks, linkCosts) {
-  this.nbrOfLinks = nbrOfLinks;
-  this.linkCosts = linkCosts;
+  toString() {
+    return `${this.nbrOfLinks}\n${this.linkCosts
+      .map(link => {
+        return `${link.linkId} - ${link.cost}\n`;
+      })
+      .join("")}`;
+  }
 }
 
 module.exports = {
