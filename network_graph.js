@@ -1,7 +1,6 @@
 class NetworkGraph {
-  constructor(routerId) {
+  constructor() {
     this.graph = {};
-    this.routerId = routerId;
   }
 
   createLink(routerId, linkId, cost) {
@@ -12,23 +11,21 @@ class NetworkGraph {
     } else {
       //create new link
       this.graph[linkId] = { routers: [routerId], cost: cost };
-
-      //link is neighouring, so add self as router on the link
-      //isNeighbour && this.graph[linkId].routers.push(this.routerId);
     }
   }
 
   checkUniqueLSPDU(routerId, linkId, cost) {
-    if (!this.graph[linkId]) {
-      return true;
+    //check if link already exists
+    if (this.graph[linkId]) {
+      let link = this.graph[linkId];
+
+      //if link exists and the routers on the link and cost is the same
+      if (link.routers.includes(routerId) && link.cost == cost) {
+        return false;
+      }
     }
 
-    let link = this.graph[linkId];
-    if (link.routers.includes(routerId) && link.cost == cost) {
-      return false;
-    } else {
-      return true;
-    }
+    return true;
   }
 
   toString() {

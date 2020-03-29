@@ -23,7 +23,7 @@ if (!_routerId || !_nseHost || !_nsePort || !_rtrPort) {
 const HELLO_PSIZE = 8;
 const LS_PSIZE = 20;
 
-const _graph = new NetworkGraph(_routerId);
+const _graph = new NetworkGraph();
 let _circuitDatabase = null;
 let neighbourList = [];
 
@@ -115,11 +115,11 @@ const processLinkStatePacket = linkStatePacket => {
       linkStatePacket.routerId,
       linkStatePacket.linkId,
       linkStatePacket.cost
-      // _circuitDatabase.findLink(linkStatePacket.linkId) //boolean whether this link is neighbouring to self
     );
-
-    /* might need to check if update required */
     forwardLinkStatePacket(linkStatePacket);
+    //To-do: work on converting topology to format suitable for djikstra
+    //To-do: djikstra algorithm
+    //To-do: generating RIB
   }
 
   console.log(_graph.toString());
