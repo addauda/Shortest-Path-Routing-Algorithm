@@ -10,7 +10,7 @@ const client = require("dgram").createSocket("udp4");
 // const createLogger = require("./logger");
 
 //retrieve cli params
-const _routerId = process.argv[2];
+const _routerId = parseInt(process.argv[2]);
 const _nseHost = process.argv[3];
 const _nsePort = process.argv[4];
 const _rtrPort = process.argv[5];
@@ -72,6 +72,13 @@ const processHelloPacket = helloPacket => {
   //add to router, link to active neighbours
   neighbourList.push(helloPacket.linkId);
 
+  //update topology with hello information
+  _graph.update(
+    _routerId,
+    helloPacket.linkId,
+    _circuitDatabase.findLink(helloPacket.linkId)
+  );
+
   //send circuit database as series of LSPDU's to neighbour who just sent hello
   for (let link of _circuitDatabase.linkCosts) {
     sndPacketToNSE(
@@ -111,19 +118,21 @@ const processLinkStatePacket = linkStatePacket => {
 
   if (isUniqueLSPDU) {
     //create/update graph with information from LSPDU
-    _graph.createLink(
+    _graph.update(
       linkStatePacket.routerId,
       linkStatePacket.linkId,
       linkStatePacket.cost
     );
+
     forwardLinkStatePacket(linkStatePacket);
-    //To-do: work on converting topology to format suitable for djikstra
     //To-do: djikstra algorithm
     //To-do: generating RIB
   }
 
-  console.log(_graph.toString());
-  console.log("-----");
+  console.log(_graph.printLinkView());
+  console.log("-------------------");
+  console.log(_graph.printNodeView());
+  console.log("\n");
 };
 
 //init router
