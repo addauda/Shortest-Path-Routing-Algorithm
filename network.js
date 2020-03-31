@@ -169,9 +169,9 @@ class Network {
     for (let node in this.nodeViewGraph) {
       output += `R${this.routerId} -> R${node} -> nbr link ${
         Object.keys(this.nodeViewGraph[node]).length
-      }`;
+      }\n`;
       for (let neighbour in this.nodeViewGraph[node]) {
-        output += `R${this.routerId} -> R${node} -> link ${this.nodeViewGraph[node][neighbour].link} cost ${this.nodeViewGraph[node][neighbour].cost}`;
+        output += `R${this.routerId} -> R${node} -> link ${this.nodeViewGraph[node][neighbour].link} cost ${this.nodeViewGraph[node][neighbour].cost}\n`;
       }
     }
     return output;
@@ -191,26 +191,36 @@ class Network {
     let N = this.RIB[0];
     let D = this.RIB[1];
     let P = this.RIB[2];
+    let output = ``;
 
-    const tracePredecessor = pred => {
-      if (pred == "Local") {
-        return pred;
-      } else if (pred == this.routerId) {
-        return `R${this.routerId}`;
-      } else {
-        if (P[N.indexOf(pred)] == this.routerId) {
-          return `R${pred}`;
-        }
-        return tracePredecessor(P[N.indexOf(pred)]);
-      }
-    };
+    for (let arr of this.RIB) {
+      output += JSON.stringify(arr);
+      output += `\n`;
+    }
 
-    let output = `# RIB\n`;
-    N.forEach((node, idx) => {
-      output += `R${this.routerId} -> R${node} -> ${tracePredecessor(
-        P[idx]
-      )}, ${D[idx]}\n`;
-    });
+    return output;
+
+    // const tracePredecessor = pred => {
+    //   if (pred == "Local") {
+    //     return pred;
+    //   } else if (pred == this.routerId) {
+    //     return `R${this.routerId}`;
+    //   } else {
+    //     if (P[N.indexOf(pred)] == this.routerId) {
+    //       return `R${pred}`;
+    //     }
+    //     return tracePredecessor(P[N.indexOf(pred)]);
+    //   }
+    // };
+
+    // let output = `# RIB\n`;
+    // N.forEach((node, idx) => {
+    //   output += `R${this.routerId} -> R${node} -> ${tracePredecessor(
+    //     P[idx]
+    //   )}, ${D[idx]}\n`;
+    // });
+
+    return output;
   }
 }
 

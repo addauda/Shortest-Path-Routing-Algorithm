@@ -5,7 +5,7 @@ const {
   LinkCost,
   CircuitDatabase
 } = require("./packet");
-const NetworkGraph = require("./network");
+const Network = require("./network");
 const client = require("dgram").createSocket("udp4");
 // const createLogger = require("./logger");
 
