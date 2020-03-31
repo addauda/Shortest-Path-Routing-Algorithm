@@ -47,8 +47,7 @@ const rcvPacketFromNSE = buffer => {
     case LS_PSIZE:
       let linkStatePacket = LinkStatePacket.parseUDPdata(buffer);
       logger.info(
-        `R${_routerId} receives a LS PDU: sender ${linkStatePacket.sender}, router_id ${linkStatePacket.routerId}, 
-		link_id ${linkStatePacket.linkId}, cost ${linkStatePacket.cost}, via ${linkStatePacket.via}`
+        `R${_routerId} receives a LS PDU: sender ${linkStatePacket.sender}, router_id ${linkStatePacket.routerId}, link_id ${linkStatePacket.linkId}, cost ${linkStatePacket.cost}, via ${linkStatePacket.via}`
       );
       processLinkStatePacket(linkStatePacket);
       break;
@@ -66,9 +65,11 @@ const rcvPacketFromNSE = buffer => {
 const sndPacketToNSE = packet => {
   let buffer = packet.getUDPData();
 
-  //send buffer and log sequence number
+  //send buffer
   client.send(buffer, _nsePort, _nseHost, err => {
-    err ? client.close() : console.log("GOOD");
+    if (err) {
+      client.close();
+    }
   });
 };
 
@@ -101,8 +102,7 @@ const processHelloPacket = helloPacket => {
   //send circuit database as series of LSPDU's to neighbour who just sent hello
   for (let link of _circuitDatabase.linkCosts) {
     logger.info(
-      `R${_routerId} sends a LS PDU: sender ${_routerId}, router_id ${_routerId}, 
-		link_id ${link.linkId}, cost ${link.cost}, via ${helloPacket.linkId}`
+      `R${_routerId} sends a LS PDU: sender ${_routerId}, router_id ${_routerId}, link_id ${link.linkId}, cost ${link.cost}, via ${helloPacket.linkId}`
     );
     sndPacketToNSE(
       new LinkStatePacket(
@@ -128,8 +128,7 @@ const forwardLinkStatePacket = linkStatePacket => {
     if (activeNeighbour != rcvdVia) {
       linkStatePacket.via = activeNeighbour;
       logger.info(
-        `R${_routerId} receives a LS PDU: sender ${linkStatePacket.sender}, router_id ${linkStatePacket.routerId}, 
-		link_id ${linkStatePacket.linkId}, cost ${linkStatePacket.cost}, via ${linkStatePacket.via}`
+        `R${_routerId} receives a LS PDU: sender ${linkStatePacket.sender}, router_id ${linkStatePacket.routerId}, link_id ${linkStatePacket.linkId}, cost ${linkStatePacket.cost}, via ${linkStatePacket.via}`
       );
       sndPacketToNSE(linkStatePacket);
     }

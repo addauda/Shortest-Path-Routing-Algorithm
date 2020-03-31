@@ -217,8 +217,6 @@ class Network {
     //     P[idx]
     //   )}, ${D[idx]}\n`;
     // });
-
-    return output;
   }
 }
 
