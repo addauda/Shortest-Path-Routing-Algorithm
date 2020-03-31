@@ -23,7 +23,7 @@ if (!_routerId || !_nseHost || !_nsePort || !_rtrPort) {
 const HELLO_PSIZE = 8;
 const LS_PSIZE = 20;
 
-const _graph = new NetworkGraph();
+const _graph = new NetworkGraph(_routerId);
 let _circuitDatabase = null;
 let neighbourList = [];
 

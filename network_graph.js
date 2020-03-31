@@ -1,5 +1,6 @@
 class NetworkGraph {
-  constructor() {
+  constructor(routerId) {
+    this.routerId = routerId;
     this.linkViewGraph = {};
     /*
       let linkViewGraphSample = {
@@ -96,6 +97,27 @@ class NetworkGraph {
       output += `\tcost ${this.linkViewGraph[linkId].cost}\n`;
     }
     return output;
+  }
+
+  djikstra() {
+    let self = this.routerId;
+    let N = Object.keys(this.nodeViewGraph);
+    let D = []; //distance to
+    let P = [];
+
+    //init djikstra
+    let D = N.map(v, idx => {
+      if (v == self) {
+        return 0;
+      } else if (this.nodeViewGraph[self][v]) {
+        P[idx] = this.routerId;
+        return this.nodeViewGraph[self][v].cost;
+      } else {
+        return Infinity;
+      }
+    });
+
+    return D;
   }
 }
 
