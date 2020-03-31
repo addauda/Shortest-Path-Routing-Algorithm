@@ -5,7 +5,7 @@ const {
   LinkCost,
   CircuitDatabase
 } = require("./packet");
-const NetworkGraph = require("./network_graph");
+const NetworkGraph = require("./network");
 const client = require("dgram").createSocket("udp4");
 // const createLogger = require("./logger");
 
@@ -23,7 +23,7 @@ if (!_routerId || !_nseHost || !_nsePort || !_rtrPort) {
 const HELLO_PSIZE = 8;
 const LS_PSIZE = 20;
 
-const _graph = new NetworkGraph(_routerId);
+const _graph = new Network(_routerId);
 let _circuitDatabase = null;
 let neighbourList = [];
 
@@ -125,14 +125,9 @@ const processLinkStatePacket = linkStatePacket => {
     );
 
     forwardLinkStatePacket(linkStatePacket);
-    //To-do: djikstra algorithm
-    //To-do: generating RIB
+    console.log(_graph.printNodeView());
+    console.log(_graph.printRIB());
   }
-
-  console.log(_graph.printLinkView());
-  console.log("-------------------");
-  console.log(_graph.printNodeView());
-  console.log("\n");
 };
 
 //init router
