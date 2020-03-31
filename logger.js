@@ -1,5 +1,5 @@
 const winston = require("winston");
-//sudo kill -9 `sudo lsof -t -i:9001`
+
 const createLogger = _fileName => {
   const logConfiguration = {
     transports: [

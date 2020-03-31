@@ -164,41 +164,39 @@ class Network {
     this.RIB = [N, D, P];
   }
 
-  printNodeView() {
-    let output = `# Topology Database\n`;
+  printNodeView(logger) {
+    logger.info(`# Topology Database`);
     for (let node in this.nodeViewGraph) {
-      output += `R${this.routerId} -> R${node} -> nbr link ${
-        Object.keys(this.nodeViewGraph[node]).length
-      }\n`;
+      logger.info(
+        `R${this.routerId} -> R${node} -> nbr link ${
+          Object.keys(this.nodeViewGraph[node]).length
+        }`
+      );
       for (let neighbour in this.nodeViewGraph[node]) {
-        output += `R${this.routerId} -> R${node} -> link ${this.nodeViewGraph[node][neighbour].link} cost ${this.nodeViewGraph[node][neighbour].cost}\n`;
+        logger.info(
+          `R${this.routerId} -> R${node} -> link ${this.nodeViewGraph[node][neighbour].link} cost ${this.nodeViewGraph[node][neighbour].cost}`
+        );
       }
     }
-    return output;
   }
 
-  printLinkView() {
-    let output = `# Link Databse\n`;
+  printLinkView(logger) {
+    logger.info(`# Link Database`);
     for (let linkId in this.linkViewGraph) {
-      output += `Link ${linkId}\n`;
-      output += `\trouters ${this.linkViewGraph[linkId].routers.join(",")}\n`;
-      output += `\tcost ${this.linkViewGraph[linkId].cost}\n`;
+      logger.info(`Link ${linkId}`);
+      logger.info(`\trouters ${this.linkViewGraph[linkId].routers.join(",")}`);
+      logger.info(`\tcost ${this.linkViewGraph[linkId].cost}`);
     }
-    return output;
   }
 
-  printRIB() {
+  printRIB(logger) {
     let N = this.RIB[0];
     let D = this.RIB[1];
     let P = this.RIB[2];
-    let output = ``;
 
     for (let arr of this.RIB) {
-      output += JSON.stringify(arr);
-      output += `\n`;
+      logger.info(JSON.stringify(arr));
     }
-
-    return output;
 
     // const tracePredecessor = pred => {
     //   if (pred == "Local") {
