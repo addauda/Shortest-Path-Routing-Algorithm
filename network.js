@@ -194,31 +194,27 @@ class Network {
     let D = this.RIB[1];
     let P = this.RIB[2];
 
-    for (let arr of this.RIB) {
-      logger.info(JSON.stringify(arr));
-    }
+    const tracePredecessor = pred => {
+      if (pred == "Local") {
+        return pred;
+      } else if (pred == self) {
+        return `R${self}`;
+      } else {
+        let prev = null;
+        while (pred != self) {
+          prev = pred;
+          pred = P[N.indexOf(pred)];
+        }
+        return `R${y}`;
+      }
+    };
 
-    // const tracePredecessor = pred => {
-    //   if (pred == "Local") {
-    //     return pred;
-    //   } else if (pred == this.routerId) {
-    //     return `R${this.routerId}`;
-    //   } else {
-    //     if (P[N.indexOf(pred)] == this.routerId) {
-    //       return `R${pred}`;
-    //     }
-    //     return tracePredecessor(P[N.indexOf(pred)]);
-    //   }
-    // };
-
-    // let output = `# RIB\n`;
-    // N.forEach((node, idx) => {
-    //   output += `R${this.routerId} -> R${node} -> ${tracePredecessor(
-    //     P[idx]
-    //   )}, ${D[idx]}\n`;
-    // });
-
-    return output;
+    logger.info(`# RIB`);
+    N.forEach((node, idx) => {
+      logger.info(
+        `R${self} -> R${node} -> ${tracePredecessor(P[idx])}, ${D[idx]}`
+      );
+    });
   }
 }
 

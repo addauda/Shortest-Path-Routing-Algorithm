@@ -79,28 +79,28 @@ while (Np.length !== N.length) {
 }
 
 //construct Rib
-// console.log(N);
-// console.log(D);
-// console.log(P);
+console.log(N);
+console.log(D);
+console.log(P);
 
-const tracePredecessor = (pred, idx) => {
+const tracePredecessor = pred => {
   if (pred == "Local") {
     return pred;
   } else if (pred == self) {
     return `R${self}`;
   } else {
-    if (P[N.indexOf(pred)] == self) {
-      return `R${pred}`;
+    let prev = null;
+    while (pred != self) {
+      prev = pred;
+      pred = P[N.indexOf(pred)];
     }
-    return tracePredecessor(P[N.indexOf(pred)]);
+    return `R${y}`;
   }
 };
 
 let output = `# RIB\n`;
 N.forEach((node, idx) => {
-  output += `R${self} -> R${node} -> ${tracePredecessor(P[idx], idx)}, ${
-    D[idx]
-  }\n`;
+  output += `R${self} -> R${node} -> ${tracePredecessor(P[idx])}, ${D[idx]}\n`;
 });
 
 console.log(output);
