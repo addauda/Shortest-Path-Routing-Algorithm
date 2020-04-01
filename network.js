@@ -123,10 +123,11 @@ class Network {
         D[idx] = 0;
         P[idx] = "Local";
       } else if (this.nodeViewGraph[this.routerId][v]) {
-        P[idx] = this.routerId;
         D[idx] = this.nodeViewGraph[this.routerId][v].cost;
+        P[idx] = this.routerId;
       } else {
         D[idx] = Infinity;
+        P[idx] = null;
       }
     });
 
@@ -194,31 +195,31 @@ class Network {
     let D = this.RIB[1];
     let P = this.RIB[2];
 
+    //figure out root level predecessor to destination
     const tracePredecessor = pred => {
-      if (pred == "Local") {
-        return pred;
-      } else if (pred == this.routerId) {
-        return `R${this.routerId}`;
-      } else {
-        let prev = null;
-        while (pred != this.routerId) {
-          logger.info("here");
-          prev = pred;
-          pred = P[N.indexOf(pred)];
+      if (pred) {
+        if (pred == "Local") {
+          return pred;
+        } else if (pred == this.routerId) {
+          return `R${this.routerId}`;
+        } else {
+          let prev = null;
+          while (pred != this.routerId) {
+            prev = pred;
+            pred = P[N.indexOf(pred)];
+          }
+          return `R${prev}`;
         }
-        return `R${prev}`;
       }
+      return `INF`;
     };
 
     logger.info(`# RIB`);
-    logger.info(JSON.stringify(N));
-    logger.info(JSON.stringify(D));
-    logger.info(JSON.stringify(P));
     N.forEach((node, idx) => {
       logger.info(
-        `R${this.routerId} -> R${node} -> ${tracePredecessor(P[idx])}, ${
-          D[idx]
-        }`
+        `R${this.routerId} -> R${node} -> ${tracePredecessor(P[idx])}, ${D[
+          idx
+        ].toString()}`
       );
     });
   }

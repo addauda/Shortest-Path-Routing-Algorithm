@@ -5,6 +5,7 @@ const {
   LinkCost,
   CircuitDatabase
 } = require("./packet");
+
 const Network = require("./network");
 const client = require("dgram").createSocket("udp4");
 const createLogger = require("./logger");
@@ -54,7 +55,7 @@ const rcvPacketFromNSE = buffer => {
     default:
       _circuitDatabase = CircuitDatabase.parseUDPdata(buffer);
       logger.info(
-        `R${_routerId} receives an CIRCUIT_DB: nbr_link ${_circuitDatabase.nbrOfLinks}`
+        `R${_routerId} receives a CIRCUIT_DB: nbr_link ${_circuitDatabase.nbrOfLinks}`
       );
       sndHelloPackets();
       break;
@@ -136,6 +137,7 @@ const forwardLinkStatePacket = linkStatePacket => {
 };
 
 const processLinkStatePacket = linkStatePacket => {
+  //check if there is new information
   let isUniqueLSPDU = _graph.checkUniqueLSPDU(
     linkStatePacket.routerId,
     linkStatePacket.linkId,
@@ -150,8 +152,10 @@ const processLinkStatePacket = linkStatePacket => {
       linkStatePacket.cost
     );
 
+    //run djikstras algorithm
     _graph.computeShortestPath();
 
+    //print internal graph structures
     _graph.printNodeView(logger);
     _graph.printRIB(logger);
 
