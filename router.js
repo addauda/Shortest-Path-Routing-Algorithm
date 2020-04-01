@@ -150,9 +150,12 @@ const processLinkStatePacket = linkStatePacket => {
       linkStatePacket.cost
     );
 
-    forwardLinkStatePacket(linkStatePacket);
+    _graph.computeShortestPath();
+
     _graph.printNodeView(logger);
     _graph.printRIB(logger);
+
+    forwardLinkStatePacket(linkStatePacket);
   }
 };
 

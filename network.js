@@ -28,7 +28,6 @@ class Network {
   update(routerId, linkId, cost) {
     this.updateLinkView(routerId, linkId, cost);
     this.updateNodeView();
-    this.computeShortestPath();
   }
 
   updateLinkView(routerId, linkId, cost) {
@@ -190,6 +189,7 @@ class Network {
   }
 
   printRIB(logger) {
+    //breakdown RIB structure
     let N = this.RIB[0];
     let D = this.RIB[1];
     let P = this.RIB[2];
@@ -197,22 +197,28 @@ class Network {
     const tracePredecessor = pred => {
       if (pred == "Local") {
         return pred;
-      } else if (pred == self) {
-        return `R${self}`;
+      } else if (pred == this.routerId) {
+        return `R${this.routerId}`;
       } else {
         let prev = null;
-        while (pred != self) {
+        while (pred != this.routerId) {
+          logger.info("here");
           prev = pred;
           pred = P[N.indexOf(pred)];
         }
-        return `R${y}`;
+        return `R${prev}`;
       }
     };
 
     logger.info(`# RIB`);
+    logger.info(JSON.stringify(N));
+    logger.info(JSON.stringify(D));
+    logger.info(JSON.stringify(P));
     N.forEach((node, idx) => {
       logger.info(
-        `R${self} -> R${node} -> ${tracePredecessor(P[idx])}, ${D[idx]}`
+        `R${this.routerId} -> R${node} -> ${tracePredecessor(P[idx])}, ${
+          D[idx]
+        }`
       );
     });
   }
