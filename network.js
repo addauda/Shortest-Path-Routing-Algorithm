@@ -1,18 +1,18 @@
 class Network {
-  constructor(routerId) {
-    this.routerId = routerId;
+  constructor(self) {
+    this.self = self;
 
-    this.linkViewGraph = {};
+    this.linkStateDatabase = {};
     /*
-      let linkViewGraphSample = {
+      let linkStateDatabaseSample = {
         1: { routers: [1, 2], cost: 3 },
         2: { routers: [1, 2], cost: 3 }
       };
     */
 
-    this.nodeViewGraph = {};
+    this.topology = {};
     /*
-      let nodeViewGraphsample = {
+      let topologysample = {
         1: {
           2: {
             link: 1,
@@ -25,55 +25,55 @@ class Network {
     this.RIB = [];
   }
 
-  update(routerId, linkId, cost) {
-    this.updateLinkView(routerId, linkId, cost);
-    this.updateNodeView();
+  update(self, linkId, cost) {
+    this.updateLinkView(self, linkId, cost);
+    this.updateTopology();
   }
 
-  updateLinkView(routerId, linkId, cost) {
+  updateLinkView(self, linkId, cost) {
     //if the link already exists, then add router on the link
-    if (this.linkViewGraph[linkId]) {
-      this.linkViewGraph[linkId].routers.push(routerId);
-      this.linkViewGraph[linkId].cost = cost;
+    if (this.linkStateDatabase[linkId]) {
+      this.linkStateDatabase[linkId].routers.push(self);
+      this.linkStateDatabase[linkId].cost = cost;
     } else {
       //create a new link
-      this.linkViewGraph[linkId] = { routers: [routerId], cost: cost };
+      this.linkStateDatabase[linkId] = { routers: [self], cost: cost };
     }
   }
 
-  updateNodeView() {
-    for (let linkId in this.linkViewGraph) {
-      let link = this.linkViewGraph[linkId];
+  updateTopology() {
+    for (let linkId in this.linkStateDatabase) {
+      let link = this.linkStateDatabase[linkId];
 
       //process each router on the link
       for (let node of link.routers) {
-        if (!this.nodeViewGraph[node]) {
-          this.nodeViewGraph[node] = {};
+        if (!this.topology[node]) {
+          this.topology[node] = {};
         }
 
         //if neighbours are on the link, process neighbour
         if (link.routers.length > 1) {
-          let neighbours = link.routers.filter(id => {
+          let neighbours = link.routers.filter((id) => {
             return id != node;
           });
 
-          //add routerId as neighbour to current node
-          this.nodeViewGraph[node][neighbours[0]] = {
+          //add self as neighbour to current node
+          this.topology[node][neighbours[0]] = {
             link: linkId,
-            cost: link.cost
+            cost: link.cost,
           };
         }
       }
     }
   }
 
-  checkUniqueLSPDU(routerId, linkId, cost) {
+  checkUniqueLSPDU(self, linkId, cost) {
     //check if link already exists
-    if (this.linkViewGraph[linkId]) {
-      let link = this.linkViewGraph[linkId];
+    if (this.linkStateDatabase[linkId]) {
+      let link = this.linkStateDatabase[linkId];
 
       //if link exists and the routers on the link and cost is the same
-      if (link.routers.includes(routerId) && link.cost == cost) {
+      if (link.routers.includes(self) && link.cost == cost) {
         return false;
       }
     }
@@ -85,19 +85,19 @@ class Network {
     //retrieves all nodes from graph
     const getNodes = () => {
       let nodes = [];
-      for (let node in this.nodeViewGraph) {
+      for (let node in this.topology) {
         nodes.push(parseInt(node));
       }
       return nodes;
     };
 
     //retrieves only nodes that have not been visited
-    const hasVisited = node => {
+    const hasVisited = (node) => {
       if (Np.indexOf(node) == -1) return node;
     };
 
     //find the node with the minimum known weight
-    const findMinWeight = n => {
+    const findMinWeight = (n) => {
       let min = Infinity;
       let w = null;
 
@@ -113,18 +113,18 @@ class Network {
 
     //djikstra variables
     const N = getNodes(); //all nodes
-    const Np = [this.routerId]; //visited nodes
+    const Np = [this.self]; //visited nodes
     const D = []; //known weight to node
     const P = []; //known predecessor to node
 
     //init djikstra variables
     N.forEach((v, idx) => {
-      if (v == this.routerId) {
+      if (v == this.self) {
         D[idx] = 0;
         P[idx] = "Local";
-      } else if (this.nodeViewGraph[this.routerId][v]) {
-        D[idx] = this.nodeViewGraph[this.routerId][v].cost;
-        P[idx] = this.routerId;
+      } else if (this.topology[this.self][v]) {
+        D[idx] = this.topology[this.self][v].cost;
+        P[idx] = this.self;
       } else {
         D[idx] = Infinity;
         P[idx] = null;
@@ -133,7 +133,7 @@ class Network {
 
     while (Np.length !== N.length) {
       //filter all nodes for the indices of nodes that have now yet been visited
-      let n = N.filter(hasVisited).map(node => {
+      let n = N.filter(hasVisited).map((node) => {
         return N.indexOf(node);
       });
 
@@ -141,14 +141,14 @@ class Network {
       let i = findMinWeight(n);
 
       //get all the neighours of i
-      for (let v in this.nodeViewGraph[N[i]]) {
+      for (let v in this.topology[N[i]]) {
         v = parseInt(v);
 
         //if neighbour has not yet been visited
         if (Np.indexOf(v) == -1) {
           //update known weight for that neighbour, only if its better
-          if (D[N.indexOf(v)] > D[i] + this.nodeViewGraph[N[i]][v].cost) {
-            D[N.indexOf(v)] = D[i] + this.nodeViewGraph[N[i]][v].cost;
+          if (D[N.indexOf(v)] > D[i] + this.topology[N[i]][v].cost) {
+            D[N.indexOf(v)] = D[i] + this.topology[N[i]][v].cost;
 
             //set predecessor node
             P[N.indexOf(v)] = N[i];
@@ -164,28 +164,30 @@ class Network {
     this.RIB = [N, D, P];
   }
 
-  printNodeView(logger) {
+  printTopology(logger) {
     logger.info(`# Topology Database`);
-    for (let node in this.nodeViewGraph) {
+    for (let node in this.topology) {
       logger.info(
-        `R${this.routerId} -> R${node} -> nbr link ${
-          Object.keys(this.nodeViewGraph[node]).length
+        `R${this.self} -> R${node} -> nbr link ${
+          Object.keys(this.topology[node]).length
         }`
       );
-      for (let neighbour in this.nodeViewGraph[node]) {
+      for (let neighbour in this.topology[node]) {
         logger.info(
-          `R${this.routerId} -> R${node} -> link ${this.nodeViewGraph[node][neighbour].link} cost ${this.nodeViewGraph[node][neighbour].cost}`
+          `R${this.self} -> R${node} -> link ${this.topology[node][neighbour].link} cost ${this.topology[node][neighbour].cost}`
         );
       }
     }
   }
 
-  printLinkView(logger) {
-    logger.info(`# Link Database`);
-    for (let linkId in this.linkViewGraph) {
+  printLinkStateDatabase(logger) {
+    logger.info(`# Link State Database`);
+    for (let linkId in this.linkStateDatabase) {
       logger.info(`Link ${linkId}`);
-      logger.info(`\trouters ${this.linkViewGraph[linkId].routers.join(",")}`);
-      logger.info(`\tcost ${this.linkViewGraph[linkId].cost}`);
+      logger.info(
+        `\trouters ${this.linkStateDatabase[linkId].routers.join(",")}`
+      );
+      logger.info(`\tcost ${this.linkStateDatabase[linkId].cost}`);
     }
   }
 
@@ -196,15 +198,15 @@ class Network {
     let P = this.RIB[2];
 
     //figure out root level predecessor to destination
-    const tracePredecessor = pred => {
+    const tracePredecessor = (pred) => {
       if (pred) {
         if (pred == "Local") {
           return pred;
-        } else if (pred == this.routerId) {
-          return `R${this.routerId}`;
+        } else if (pred == this.self) {
+          return `R${this.self}`;
         } else {
           let prev = null;
-          while (pred != this.routerId) {
+          while (pred != this.self) {
             prev = pred;
             pred = P[N.indexOf(pred)];
           }
@@ -217,7 +219,7 @@ class Network {
     logger.info(`# RIB`);
     N.forEach((node, idx) => {
       logger.info(
-        `R${this.routerId} -> R${node} -> ${tracePredecessor(P[idx])}, ${D[
+        `R${this.self} -> R${node} -> ${tracePredecessor(P[idx])}, ${D[
           idx
         ].toString()}`
       );

@@ -3,7 +3,7 @@ const {
   LinkStatePacket,
   InitPacket,
   LinkCost,
-  CircuitDatabase
+  CircuitDatabase,
 } = require("./packet");
 
 const Network = require("./network");
@@ -11,29 +11,29 @@ const client = require("dgram").createSocket("udp4");
 const createLogger = require("./logger");
 
 //retrieve cli params
-const _routerId = parseInt(process.argv[2]);
+const _self = parseInt(process.argv[2]);
 const _nseHost = process.argv[3];
 const _nsePort = process.argv[4];
 const _rtrPort = process.argv[5];
 
 //throw error if cli null or empty
-if (!_routerId || !_nseHost || !_nsePort || !_rtrPort) {
+if (!_self || !_nseHost || !_nsePort || !_rtrPort) {
   throw "Missing a required CLI param";
 }
 
 //logger constants
-const logFileName = `router${_routerId}.log`;
+const logFileName = `router${_self}.log`;
 const logger = createLogger(logFileName);
 
 const HELLO_PSIZE = 8;
 const LS_PSIZE = 20;
 
-const _graph = new Network(_routerId);
+const _network = new Network(_self);
 let _circuitDatabase = null;
-let neighbourList = [];
+let neighbourLinks = [];
 
 //parse packets from nse
-const rcvPacketFromNSE = buffer => {
+const rcvPacketFromNSE = (buffer) => {
   //create packet from buffer
   let length = Buffer.byteLength(buffer);
 
@@ -41,33 +41,33 @@ const rcvPacketFromNSE = buffer => {
     case HELLO_PSIZE:
       let helloPacket = HelloPacket.parseUDPdata(buffer);
       logger.info(
-        `R${_routerId} receives a HELLO: router_id ${helloPacket.routerId} link ${helloPacket.linkId}`
+        `R${_self} receives a HELLO: router_id ${helloPacket.routerId} link ${helloPacket.linkId}`
       );
       processHelloPacket(helloPacket);
       break;
     case LS_PSIZE:
       let linkStatePacket = LinkStatePacket.parseUDPdata(buffer);
       logger.info(
-        `R${_routerId} receives a LS PDU: sender ${linkStatePacket.sender}, router_id ${linkStatePacket.routerId}, link_id ${linkStatePacket.linkId}, cost ${linkStatePacket.cost}, via ${linkStatePacket.via}`
+        `R${_self} receives a LS PDU: sender ${linkStatePacket.sender}, router_id ${linkStatePacket.routerId}, link_id ${linkStatePacket.linkId}, cost ${linkStatePacket.cost}, via ${linkStatePacket.via}`
       );
       processLinkStatePacket(linkStatePacket);
       break;
     default:
       _circuitDatabase = CircuitDatabase.parseUDPdata(buffer);
       logger.info(
-        `R${_routerId} receives a CIRCUIT_DB: nbr_link ${_circuitDatabase.nbrOfLinks}`
+        `R${_self} receives a CIRCUIT_DB: nbr_link ${_circuitDatabase.nbrOfLinks}`
       );
-      sndHelloPackets();
+      processCircuitDatabase();
       break;
   }
 };
 
 //send packets to nse
-const sndPacketToNSE = packet => {
+const sndPacketToNSE = (packet) => {
   let buffer = packet.getUDPData();
 
   //send buffer
-  client.send(buffer, _nsePort, _nseHost, err => {
+  client.send(buffer, _nsePort, _nseHost, (err) => {
     if (err) {
       client.close();
     }
@@ -83,86 +83,93 @@ client.bind(_rtrPort);
 const sndHelloPackets = () => {
   for (let link of _circuitDatabase.linkCosts) {
     logger.info(
-      `R${_routerId} send HELLO: router_id ${_routerId} link_id ${link.linkId}`
+      `R${_self} send HELLO: router_id ${_self} link_id ${link.linkId}`
     );
-    sndPacketToNSE(new HelloPacket(_routerId, link.linkId));
+    sndPacketToNSE(new HelloPacket(_self, link.linkId));
   }
 };
 
-const processHelloPacket = helloPacket => {
+const processCircuitDatabase = () => {
+  //update link state database with information from circuit db
+  for (let link of _circuitDatabase.linkCosts) {
+    _network.update(_self, link.linkId, link.cost);
+  }
+  sndHelloPackets();
+};
+
+const processHelloPacket = (helloPacket) => {
   //add to router, link to active neighbours
-  neighbourList.push(helloPacket.linkId);
+  neighbourLinks.push(helloPacket.linkId);
 
   //update topology with hello information
-  _graph.update(
-    _routerId,
+  _network.update(
+    _self,
     helloPacket.linkId,
     _circuitDatabase.findLink(helloPacket.linkId)
   );
 
-  //send circuit database as series of LSPDU's to neighbour who just sent hello
-  for (let link of _circuitDatabase.linkCosts) {
-    logger.info(
-      `R${_routerId} sends a LS PDU: sender ${_routerId}, router_id ${_routerId}, link_id ${link.linkId}, cost ${link.cost}, via ${helloPacket.linkId}`
-    );
-    sndPacketToNSE(
-      new LinkStatePacket(
-        _routerId,
-        _routerId,
-        link.linkId,
-        link.cost,
-        helloPacket.linkId
-      )
-    );
+  //send link state database as series of LSPDU's to neighbour who just sent hello
+  for (let linkId in _network.linkStateDatabase) {
+    for (let routerId of _network.linkStateDatabase[linkId].routers) {
+      sndPacketToNSE(
+        new LinkStatePacket(
+          _self,
+          routerId,
+          linkId,
+          _network.linkStateDatabase[linkId].cost,
+          helloPacket.linkId
+        )
+      );
+    }
   }
 };
 
-const forwardLinkStatePacket = linkStatePacket => {
+const forwardLinkStatePacket = (linkStatePacket) => {
   //get link LSPDU was received from
   rcvdVia = linkStatePacket.via;
 
   //set new sender as self
-  linkStatePacket.sender = _routerId;
+  linkStatePacket.sender = _self;
 
   //send to every neighbour except where it was received
-  for (activeNeighbour of neighbourList) {
+  for (activeNeighbour of neighbourLinks) {
     if (activeNeighbour != rcvdVia) {
       linkStatePacket.via = activeNeighbour;
       logger.info(
-        `R${_routerId} receives a LS PDU: sender ${linkStatePacket.sender}, router_id ${linkStatePacket.routerId}, link_id ${linkStatePacket.linkId}, cost ${linkStatePacket.cost}, via ${linkStatePacket.via}`
+        `R${_self} receives a LS PDU: sender ${linkStatePacket.sender}, router_id ${linkStatePacket.routerId}, link_id ${linkStatePacket.linkId}, cost ${linkStatePacket.cost}, via ${linkStatePacket.via}`
       );
       sndPacketToNSE(linkStatePacket);
     }
   }
 };
 
-const processLinkStatePacket = linkStatePacket => {
+const processLinkStatePacket = (linkStatePacket) => {
   //check if there is new information
-  let isUniqueLSPDU = _graph.checkUniqueLSPDU(
+  let isUniqueLSPDU = _network.checkUniqueLSPDU(
     linkStatePacket.routerId,
     linkStatePacket.linkId,
     linkStatePacket.cost
   );
 
   if (isUniqueLSPDU) {
-    //create/update graph with information from LSPDU
-    _graph.update(
+    //create/update network with information from LSPDU
+    _network.update(
       linkStatePacket.routerId,
       linkStatePacket.linkId,
       linkStatePacket.cost
     );
 
     //run djikstras algorithm
-    _graph.computeShortestPath();
+    _network.computeShortestPath();
 
-    //print internal graph structures
-    _graph.printNodeView(logger);
-    _graph.printRIB(logger);
+    //print internal network structures
+    _network.printTopology(logger);
+    _network.printRIB(logger);
 
     forwardLinkStatePacket(linkStatePacket);
   }
 };
 
 //init router
-logger.info(`R${_routerId} send INIT: router_id ${_routerId}`);
-sndPacketToNSE(new InitPacket(_routerId));
+logger.info(`R${_self} send INIT: router_id ${_self}`);
+sndPacketToNSE(new InitPacket(_self));

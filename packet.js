@@ -124,7 +124,7 @@ class CircuitDatabase {
 
   toString() {
     return `${this.nbrOfLinks}\n${this.linkCosts
-      .map(link => {
+      .map((link) => {
         return `${link.linkId} - ${link.cost}\n`;
       })
       .join("")}`;
@@ -136,5 +136,5 @@ module.exports = {
   LinkStatePacket,
   InitPacket,
   LinkCost,
-  CircuitDatabase
+  CircuitDatabase,
 };
