@@ -1,7 +1,7 @@
 # Shortest Path Routing Algorithm with Djikstra
 
 ## How to run program
-- Install dependencies with `npm install`
+- Run `./make` to install dependencies and generate script to run routers
 - Run the nse:
   - `./nse <command line arguments>`
 - Run the 5 routers sequentially:

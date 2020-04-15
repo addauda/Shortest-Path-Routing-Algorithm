@@ -3,6 +3,7 @@ package-lock.json
 .vscode/
 port.txt
 output.*
+router
 
 # Logs
 logs
